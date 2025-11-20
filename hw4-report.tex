@@ -1,0 +1,444 @@
+\documentclass{article}
+\usepackage{hyperref}
+
+\input{header}
+
+\title{DSGA 1011: Assignment 4}
+
+\author{Ghina Hasan Abdelmajid Al Shdaifat \\ gha2009}
+
+\date{}
+
+
+\colmfinalcopy
+\begin{document}
+\maketitle
+\section*{URL Links for Assignment Submission}
+(1) Github repository link with Part I and Part II code: \url{https://github.com/ghinalshdaifat/nlp-hw4}
+
+(2) Google drive link that contains model checkpoints (Q7 and Extra Credit): \url{https://drive.google.com/drive/folders/1rzNMRs3VCVTmLD2KYEgRGFgTZ1pAyE_z?usp=share_link}
+
+\section*{Part I: Fine-tuning BERT Model for Sentiment Classification} 
+\section*{Q1: Fine-tuning BERT Model}
+Output file \texttt{out\_original.txt} generated from the full training and
+evaluation step submitted on Gradescope.
+
+\section*{Q2: Data Transformations}
+\section*{Q2.1: Design of Transformation}
+
+I implemented a \textbf{random typo injection transformation} that introduces realistic keyboard-based typing errors into the text. The transformation simulates common human typing mistakes by leveraging the physical layout of the QWERTY keyboard. The transformation operates through the following mechanism:
+
+\begin{enumerate}
+    \item \textbf{Word Selection}: The text is first tokenized by splitting on whitespace. Each alphabetic word with length greater than 3 characters is independently evaluated with a 50\% probability of receiving a typo. Short words (length $\leq$ 3) such as ``the,'' ``is,'' and ``was'' are excluded to maintain basic readability, and non-alphabetic tokens (punctuation, numbers) are preserved unchanged.
+    
+    \item \textbf{Typo Type Selection}: For each selected word, one of four typo types is randomly chosen with equal probability (25\% each):
+    \begin{itemize}
+        \item \textbf{Character Swap}: Two adjacent characters are transposed, simulating a common typing error (e.g., ``great'' $\rightarrow$ ``graet'')
+        \item \textbf{Character Deletion}: A single character is removed, representing a missed keystroke (e.g., ``movie'' $\rightarrow$ ``moie'')
+        \item \textbf{Character Insertion}: An extra character is inserted at a random position, selected from the QWERTY keyboard neighbors of an existing character in the word (e.g., ``film'' $\rightarrow$ ``fsilm'')
+        \item \textbf{Character Substitution}: A character is replaced with one of its QWERTY keyboard neighbors, simulating a fat-finger error or misaligned keystroke (e.g., ``best'' $\rightarrow$ ``besy'')
+    \end{itemize}
+    
+    \item \textbf{QWERTY Keyboard Mapping}: For insertion and substitution operations, I use a predefined dictionary that maps each letter to its spatially adjacent keys on a standard QWERTY keyboard layout. For example, the key `e' has neighbors `w', `s', `d', and `r'. This ensures that typos reflect \textbf{realistic human typing errors} rather than arbitrary character substitutions. If a character is not found in the mapping, a random lowercase letter is selected as a fallback.
+    
+    \item \textbf{Position Selection}: Within each selected word, a random character position is \textbf{uniformly sampled} for the typo operation. All operations are performed on the lowercase version of the word to ensure consistency.
+\end{enumerate}
+
+\textbf{Why this transformation is reasonable:} Typo injection simulates \textbf{authentic user input errors} that occur frequently in real-world text, particularly in fast-paced typing scenarios or on mobile devices with smaller keyboards. Research in human-computer interaction demonstrates that typing errors are ubiquitous in user-generated content, with error rates ranging from 2\% to 15\% (\url{https://arxiv.org/pdf/2502.03560}) depending on the input modality and user expertise. Studies have shown that approximately 50\% of typing errors involve character transpositions, deletions, insertions, or substitutions—precisely the error types my transformation models (\url{https://faculty.washington.edu/wobbrock/pubs/tochi-06.pdf}).
+
+This represents a realistic out-of-distribution scenario because sentiment-bearing content in production systems frequently contains spelling mistakes, yet human readers effortlessly extract the intended meaning and sentiment. For instance, ``This movei was amazign!'' unambiguously expresses positive sentiment despite containing two typos. A robust sentiment classifier deployed in real-world applications must exhibit resilience to such surface-level perturbations, as requiring perfectly spelled input would severely limit practical utility. Users on social media platforms, product review sites, and customer feedback forms routinely submit text with typos, and a production-grade model must handle this noisy input gracefully.
+
+The 50\% typo probability represents an aggressive but plausible scenario—comparable to text produced by users typing rapidly on mobile devices or individuals with lower typing proficiency. By maintaining semantic content and sentiment polarity while corrupting surface forms, this transformation tests whether the model has learned robust representations of sentiment that transcend exact lexical matches, or whether it relies on brittle pattern matching that fails when confronted with imperfect input.
+
+\section*{Q2.2: Transformation Implementation}
+Output file \texttt{out\_transformed.txt} generated from the evaluation step submitted on Gradescope.
+
+\section*{Q3: Data Augmentation}
+
+(1) Evaluation on Original Test Data: output file \texttt{out\_augmented\_original.txt} submitted on Gradescope.
+
+(2) Evaluation on Transformed Test Data: output file \texttt{out\_augmented\_transformed.txt} submitted on Gradescope.
+
+
+\section*{Report \& Analysis}
+
+I trained a BERT model on augmented training data consisting of the original 25,000 IMDB training examples combined with 5,000 additional examples generated by applying the typo injection transformation to randomly sampled training instances. The augmented dataset thus contained 30,000 total training examples.
+    % \begin{itemize}
+    %     \item Report the accuracy values for both the original and transformed test data evaluations.  \textcolor{gray}{TODO}
+    %     \item Analyze and discuss the following: (1) Did the model's performance on the transformed test data improve after applying data augmentation? (2) How did data augmentation affect the model's performance on the original test data? Did it enhance or diminish its accuracy? \textcolor{gray}{TODO}
+    %     \item Offer an intuitive explanation for the observed results, considering the impact of data augmentation on model training. \textcolor{gray}{TODO}
+    %     \item Explain one limitation of the data augmentation approach used here to improve performance on out-of-distribution (OOD) test sets. \textcolor{gray}{TODO}
+    % \end{itemize}
+  
+\textbf{Results}
+
+    % Table~\ref{tab:augmentation_results}:
+    
+    \begin{table}[H]
+    \centering
+    \begin{tabular}{lcc}
+    \toprule
+    \textbf{Model} & \textbf{Original Test Acc} & \textbf{Transformed Test Acc} \\
+    \midrule
+    Baseline (Q1) & 92.9\% & 87.3\% \\
+    Augmented (Q3) & 92.5\% & 89.1\% \\
+    \bottomrule
+    \end{tabular}
+    \caption{Accuracy values for both the original and transformed test data evaluations}
+    \label{tab:augmentation_results}
+    \end{table}
+
+\begin{enumerate}
+    \item \textbf{Analysis}
+    \begin{itemize}
+        \item \textbf{Performance on Transformed Test Data:} The model's performance on the transformed test data \textbf{improved significantly} after applying data augmentation, increasing from 87.3\% to 89.1\% (a gain of 1.8 percentage points). This demonstrates that exposing the model to typo-corrupted examples during training enabled it to learn more robust representations that \textbf{generalize better to noisy input}. The performance gap between clean and corrupted text \textbf{narrowed from 5.6 percentage points (baseline) to 3.4 percentage points (augmented)}, indicating substantially \textbf{improved robustness to distribution shift.}
+        \item \textbf{Performance on Original Test Data:} Data augmentation had a \textbf{minimal} effect on the model's performance on the original test data, with accuracy decreasing slightly from 92.9\% to 92.5\% (a negligible drop of only 0.4 percentage points). This small decrease is well within typical variance and suggests that the \textbf{augmented examples did not substantially interfere} with the model's ability to handle clean, well-formed text. This represents an excellent trade-off: \textbf{sacrificing minimal performance on clean data to achieve substantial gains in robustness.}
+    \end{itemize}
+    \item \textbf{Intuitive Explanation}
+    \begin{itemize}
+        \item The improvement on transformed test data can be attributed to the model's exposure to \textbf{diverse input patterns} during training. By including typo-corrupted examples in the training set, the model learns that \textbf{semantically equivalent inputs can have different surface forms.} This encourages the model to develop representations that focus on semantic content and sentiment-bearing words rather than exact lexical matches or surface-level character sequences.
+        \item From an optimization perspective, data augmentation acts as a \textbf{form of regularization.} The model encounters multiple variations of similar semantic content, which \textbf{prevents overfitting} to specific word spellings and forces the network to learn more generalizable features. The BERT encoder learns to map both ``movie'' and ``movei'' (or ``moive'') to similar contextual embeddings, recognizing that \textbf{local character-level perturbations should not dramatically alter sentiment predictions.} This is particularly important because \textbf{BERT uses subword tokenization (WordPiece)}, which can fragment misspelled words differently than correct spellings, potentially leading to very different token sequences. By training on corrupted examples, the model learns to be robust to these tokenization differences.
+        \item The \textbf{slight performance degradation on original test data} (0.4 percentage points) represents an acceptable and almost negligible trade-off. The model \textbf{sacrifices minimal precision on clean data to gain substantial robustness on noisy data.} In production systems where user input quality varies significantly—ranging from carefully edited professional reviews to hastily typed mobile comments—this trade-off is highly desirable. The marginal loss on clean data is far outweighed by the 1.8 percentage point gain in handling real-world imperfect input, which likely represents a substantial fraction of actual user-generated content.
+    \end{itemize}
+    \item \textbf{Limitations of Data Augmentation}
+    \begin{itemize}
+        \item One significant limitation of this data augmentation approach is its \textbf{dependency on knowing the distribution of test-time perturbations a priori}. The augmentation strategy is effective precisely because I applied the same typo injection transformation (50\% probability, QWERTY-based errors) to both training augmentation and test evaluation. However, in real-world deployments, the types of distribution shifts encountered at test time are often unknown or unpredictable during training.
+        \item If the actual test distribution involves different types of perturbations—such as autocorrect errors (which might produce valid but semantically inappropriate words), phonetic misspellings (``definately'' instead of ``definitely''), domain-specific jargon, grammatical errors, or code-switching between languages—the augmentation strategy may provide little benefit. The model becomes \textbf{robust specifically to QWERTY-based random typos} but may remain vulnerable to other forms of input corruption. For example, autocorrect changing ``This movie wasn't good'' to ``This movie was good'' would completely flip the sentiment, but our augmentation \textbf{provides no robustness to such errors.}
+        \item This highlights a fundamental challenge in out-of-distribution generalization: \textbf{augmentation strategies must either anticipate all possible distribution shifts (which is infeasible in practice) or develop truly distribution-agnostic robustness, which simple data augmentation cannot guarantee.} The approach also \textbf{scales poorly}—to handle $n$ different types of distribution shifts, one would need to augment the training set with $n$ different transformations, \textbf{multiplying computational costs and training time.}
+        \item Additionally, this approach requires \textbf{additional computational resources} for training on a larger dataset (30,000 vs 25,000 examples, a 20\% increase) and careful tuning of the augmentation probability and quantity to balance robustness with performance on clean data. The optimal augmentation rate may vary across datasets and tasks, requiring \textbf{expensive hyperparameter search.}
+    \end{itemize}
+\end{enumerate}
+    
+    
+
+    
+
+    
+  
+\section*{Part II: Fine-tuning T5 for Text-to-SQL}
+% 
+% \section{Data Statistics and Processing (8pt)}
+
+
+% \begin{table}[h!]
+% \centering
+% \begin{tabular}{lcc}
+% \toprule
+% Statistics Name & Train & Dev \\
+% \midrule
+% Number of examples & \textcolor{gray}{4,225} & \textcolor{gray}{466} \\
+% Mean sentence length & \textcolor{gray}{18.10}& \textcolor{gray}{18.07} \\
+% Mean SQL query length & \textcolor{gray}{217.37}& \textcolor{gray}{211.05}  \\
+% Vocabulary size (natural language)& \textcolor{gray}{792}& \textcolor{gray}{466}  \\
+% Vocabulary size (SQL)& \textcolor{gray}{556}& \textcolor{gray}{396}  \\
+% \bottomrule
+% \end{tabular}
+% \caption{Data statistics before any pre-processing. \textcolor{gray}{You need to at least provide the statistics listed above, and can add new entries.}}
+% \label{tab:data_stats_before}
+% \end{table}
+\section*{Q4: Data Statistics and Processing}
+% Table 1: Before Preprocessing
+\begin{table}[h!]
+\centering
+\begin{tabular}{lcc}
+\toprule
+Statistics Name & Train & Dev \\
+\midrule
+Number of examples & 4225 & 466 \\
+Mean sentence length & 10.957 & 10.906 \\
+Mean SQL query length & 60.902 & 58.897 \\
+Vocabulary size (NL) & 868 & 444 \\
+Vocabulary size (SQL) & 643 & 393 \\
+\bottomrule
+\end{tabular}
+\caption{Data statistics before any pre-processing}
+\label{tab:stats_before}
+\end{table}
+
+% \begin{table}[h!]
+%   \centering
+%   \begin{tabular}{lcc}
+%   \toprule
+%   Statistics Name & Train & Dev \\
+%   \midrule
+%   \multicolumn{3}{l}{\textbf{Model: google-t5/t5-small (fine-tuned)}} \\
+%   \midrule
+%   Mean sentence length & 18.1 & 18.1 \\
+%   Mean SQL query length & 217.4 & 211.1  \\
+%   Vocabulary size (natural language) & 792 & 466  \\
+%   Vocabulary size (SQL) & 556 & 396  \\
+%   \bottomrule
+%   \end{tabular}
+%   \caption{Data statistics after pre-processing. Statistics remain unchanged as no examples were filtered and all sequences fit within the maximum length constraints (64 tokens for input, 512 tokens for output).}
+%   \label{tab:data_stats_after}
+%   \end{table}
+
+\begin{table}[h!]
+   \centering
+   \begin{tabular}{lcc}
+   \toprule
+   Statistics Name & Train & Dev \\
+   \midrule
+   \multicolumn{3}{l}{\textbf{Model: google-t5/t5-small (fine-tuned)}} \\
+   \midrule
+   Mean sentence length (tokens) & 23.097 & 23.071 \\
+Mean SQL query length (tokens) & 217.373 & 211.054 \\
+Vocab size used (NL) & 796 & 470 \\
+Vocab size used (SQL) & 556 & 396 \\
+\bottomrule
+\end{tabular}
+\caption{Data statistics after pre-processing with T5 tokenizer}
+\label{tab:stats_after}
+\end{table}
+
+
+\section*{Q5: T5 Fine-tuning}
+
+\begin{itemize}
+    \item Data Processing: No special preprocessing was applied beyond the standard T5 tokenization pipeline. Natural language queries were prefixed with the task identifier \texttt{"translate English to SQL: "} to guide the model. Both input and output sequences were tokenized using the T5 tokenizer, with special tokens (pad, eos) added automatically. Dynamic padding was applied at the batch level during training to handle variable-length sequences efficiently.
+    \item Tokenization: I used the default \texttt{T5TokenizerFast} from the \texttt{google-t5/t5-small} checkpoint for both encoder and decoder. The tokenizer employs SentencePiece subword tokenization with a vocabulary size of 32,100 tokens. For encoder input, we tokenized the natural language query with the task prefix (resulting in mean length of $\sim$23 tokens). For decoder output, we tokenized the SQL query directly (mean length of $\sim$217 tokens). Special tokens were added automatically (\texttt{add\_special\_tokens=True}), and the tokenizer's padding token served as the decoder start token during generation. No custom tokenizer was used as the default T5 tokenizer was well-suited for both natural language and SQL code. 
+    \item Architecture: We fine-tuned the entire pretrained \texttt{google-t5/t5-small} model (60.5M parameters) without freezing any layers. All parameters in both the encoder and decoder were trainable, including the embedding layers, attention mechanisms, feed-forward networks, and layer normalization components. No architectural modifications were made to the base T5 model. The model follows the standard encoder-decoder transformer architecture with 6 layers in both encoder and decoder, 8 attention heads, and a hidden dimension of 512.
+    \item Hyperparameters: 
+    \begin{itemize}
+        \item \textbf{Optimizer:} AdamW with learning rate $5 \times 10^{-4}$, $\beta_1=0.9$, $\beta_2=0.999$, $\epsilon=10^{-8}$, and weight decay of 0.01. 
+        \item \textbf{Scheduler:} Cosine annealing with linear warmup for 1 epoch. 
+        \item \textbf{Training:} Batch size of 16 for training, 32 for evaluation. Maximum of 10 epochs with early stopping patience of 3 epochs (monitoring validation Record F1 score). Gradient clipping at max norm of 1.0. 
+        \item \textbf{Generation:} Beam search with 4 beams, maximum output length of 128 tokens, and early stopping enabled. 
+        \item \textbf{Loss:} Cross-entropy loss computed only on non-padding tokens.
+
+    \end{itemize}
+\end{itemize}
+
+% Data processing steps and implementation details for the fine-tuned
+% T5 model: 
+% \label{sec:t5}
+% \begin{table}[H]
+% \centering
+% \begin{tabular}{p{3.5cm}p{10cm}}
+% \toprule
+% Design choice & Description \\
+% \midrule
+% Data processing & No special preprocessing was applied beyond the standard T5 tokenization pipeline. Natural language queries were prefixed with the task identifier \texttt{"translate English to SQL: "} to guide the model. Both input and output sequences were tokenized using the T5 tokenizer, with special tokens (pad, eos) added automatically. Dynamic padding was applied at the batch level during training to handle variable-length sequences efficiently. \\
+% Tokenization & We used the default \texttt{T5TokenizerFast} from the \texttt{google-t5/t5-small} checkpoint for both encoder and decoder. The tokenizer employs SentencePiece subword tokenization with a vocabulary size of 32,100 tokens. For encoder input, we tokenized the natural language query with the task prefix (resulting in mean length of $\sim$23 tokens). For decoder output, we tokenized the SQL query directly (mean length of $\sim$217 tokens). Special tokens were added automatically (\texttt{add\_special\_tokens=True}), and the tokenizer's padding token served as the decoder start token during generation. No custom tokenizer was used as the default T5 tokenizer was well-suited for both natural language and SQL code. \\
+% Architecture & We fine-tuned the entire pretrained \texttt{google-t5/t5-small} model (60.5M parameters) without freezing any layers. All parameters in both the encoder and decoder were trainable, including the embedding layers, attention mechanisms, feed-forward networks, and layer normalization components. No architectural modifications were made to the base T5 model. The model follows the standard encoder-decoder transformer architecture with 6 layers in both encoder and decoder, 8 attention heads, and a hidden dimension of 512. \\
+% Hyperparameters & \textbf{Optimizer:} AdamW with learning rate $5 \times 10^{-4}$, $\beta_1=0.9$, $\beta_2=0.999$, $\epsilon=10^{-8}$, and weight decay of 0.01. 
+% \textbf{Scheduler:} Cosine annealing with linear warmup for 1 epoch. 
+% \textbf{Training:} Batch size of 16 for training, 32 for evaluation. Maximum of 10 epochs with early stopping patience of 3 epochs (monitoring validation Record F1 score). Gradient clipping at max norm of 1.0. 
+% \textbf{Generation:} Beam search with 4 beams, maximum output length of 128 tokens, and early stopping enabled. 
+% \textbf{Loss:} Cross-entropy loss computed only on non-padding tokens. \\
+% \bottomrule
+% \end{tabular}
+% \caption{Details of the best-performing T5 model configurations (fine-tuned)}
+% \label{tab:t5_results_ft}
+% \end{table}
+
+
+
+
+
+
+
+\section*{Q6. }
+\paragraph{Quantitative Results:} 
+\begin{table}[h!]
+\centering
+\begin{tabular}{lcc c}
+  \toprule
+  System & Query EM & F1 score & Record EM \\
+  \midrule
+  \multicolumn{4}{l}{\textbf{Dev Results}} \\
+  \midrule
+  
+  \multicolumn{4}{l}{\textbf{T5 fine-tuned}} \\
+  Full model & 1.93 & 70.90 & 69.63 \\[5pt]
+  
+  \midrule
+  \multicolumn{4}{l}{\textbf{Test Results}} \\
+  \midrule
+  T5 fine-tuning & 0.00 & 71.71 & 68.98 \\
+  \bottomrule
+\end{tabular}  
+\caption{Development and test results for T5 text-to-SQL model. Test results match Gradescope leaderboard.}
+\label{tab:results}
+\end{table}
+
+
+The T5 fine-tuned model achieved strong performance on both development and test sets, 
+with Record F1 scores of 70.90\% and 71.71\% respectively. The test performance slightly 
+exceeding development performance indicates good generalization without overfitting. 
+The SQL Exact Match remains low on both sets (1.93\% dev, 0.00\% test), which is expected 
+in text-to-SQL tasks due to multiple valid syntactic representations of semantically 
+equivalent queries. The high Record F1 scores demonstrate that the model successfully 
+generates SQL queries that return correct database results, which is the primary objective 
+of the task.
+
+% \paragraph{Qualitative Error Analysis:} 
+
+
+% \begin{landscape}
+% \begin{table}
+%   \centering
+%   \begin{tabular}{p{2cm}p{6cm}p{6cm}p{6cm}}
+%     \toprule
+%     \textbf{Error Type}& \textbf{Example Of Error} & \textbf{Error Description} & \textbf{Statistics} \\
+%     \midrule
+%     \textcolor{gray}{Error name}  & \textcolor{gray}{Snippet from datapoint examplifying error} & \textcolor{gray}{Describe the error in natural language} & \textcolor{gray}{Provide statistics in the form ``COUNT/TOTAL'' on the prevalence of the error. TOTAL is the number of relevant examples (e.g. number of queries, for query-level error), and COUNT is the number of examples that showed this error.}  \\
+    
+%     \midrule
+%     &  &   & \\
+%     \bottomrule
+%   \end{tabular}
+%   \label{tab:qualitative}
+%   \caption{Use this table for your qualitative analysis on the dev set.}\label{tab:qualitative}
+% \end{table}
+% \end{landscape}
+\paragraph{Qualitative Error Analysis:} 
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{p{2cm}p{4cm}p{4cm}p{1.2cm}}
+\toprule
+\textbf{Error Type} & \textbf{Example} & \textbf{Error Description} & \textbf{Statistics} \\
+\midrule
+Syntax: Missing Comparison Operators & 
+\textbf{NL:} "early flight from dallas to houston"\newline
+\textbf{Predicted SQL:} \texttt{...flight\_1.departure\_time 1000)}\newline
+- Missing \texttt{<} operator before \texttt{1000}. &
+Model generates SQL missing comparison operators (\texttt{<}, \texttt{>}, \texttt{<=}, \texttt{>=}) in WHERE clauses, resulting in syntax errors like "near 1000: syntax error". &
+10/466 
+(2.15\%) \\
+\midrule
+Syntax: Incomplete Queries & 
+\textbf{NL:} "what is the earliest flight leaving denver going to boston"\newline
+\textbf{Predicted SQL:} Query ends with \texttt{...city\_2.city\_code} (incomplete). &
+Generated SQL is truncated mid-query, missing closing parentheses, final predicates, or entire clauses. This occurs when queries exceed expected length. &
+5/466 
+(1.07\%) \\
+\midrule
+Syntax: Invalid Column References &
+\textbf{NL:} "list all flights from boston to san francisco with the maximum number of stops" \newline
+\textbf{Predicted SQL:} \texttt{...flight\_1.stops = maximum}\newline
+- Using word "maximum" instead of aggregate function. &
+Model uses natural language terms like "maximum" or "minimum" as column values instead of proper SQL aggregate functions like \texttt{MAX()} or \texttt{MIN()}. &
+1/466 
+(0.21\%) \\
+\midrule
+Semantic: Wrong Comparison Operators &
+\textbf{NL:} "flights available between 10am and 3pm"\newline
+\textbf{GT SQL:} \texttt{...departure\_time >= 1000 AND departure\_time <= 1500}\newline
+\textbf{Predicted SQL:} \texttt{...departure\_time >= 1000 AND departure\_time = 1500}\newline
+- Using \texttt{=} instead of \texttt{<=}. &
+Model generates syntactically valid SQL but uses incorrect comparison operators in range queries, replacing \texttt{<=} or \texttt{>=} with \texttt{=}, leading to overly restrictive conditions. &
+4/466 
+(0.86\%) \\
+\midrule
+Semantic: Wrong Table Selection &
+\textbf{NL:} "i'm starting from denver" (asking about flights)\newline
+\textbf{GT SQL:} \texttt{SELECT...FROM flight...}\newline
+\textbf{Predicted SQL:} \texttt{SELECT...FROM ground\_service...}\newline
+- Querying wrong table. &
+Model selects semantically related but incorrect tables, such as querying \texttt{ground\_service} instead of \texttt{flight} table when user asks about departing from a city. &
+2/466 
+(0.43\%) \\
+\midrule
+Semantic: Missing Predicates &
+\textbf{NL:} "ground transportation available and how much does it cost"\newline
+\textbf{GT SQL:} \texttt{SELECT transport\_type, ground\_fare...}\newline
+\textbf{Predicted SQL:} \texttt{SELECT transport\_type...}\newline
+- Missing \texttt{ground\_fare} column. &
+Model omits required output columns or WHERE clause predicates, generating queries that are syntactically correct but don't fully capture user requirements. &
+3/466 
+(0.64\%) \\
+\bottomrule
+\end{tabular}
+\caption{Error analysis on development set for T5 fine-tuned model. Total errors analyzed: 99/466 (21.24\%).}
+\label{tab:error_analysis}
+\end{table}
+
+
+
+The error analysis reveals two primary failure modes in the fine-tuned T5 model. 
+
+\textbf{1) Syntax errors} (approximately 3.4\% of queries) primarily stem from missing comparison 
+operators in WHERE clauses, where the model generates predicates like 
+\texttt{flight\_1.departure\_time 1000} instead of \texttt{flight\_1.departure\_time < 1000}. 
+This suggests the model occasionally fails to generate the complete operator token during 
+decoding. A smaller subset of syntax errors involves incomplete queries that are truncated 
+mid-generation, though increasing the \texttt{max\_length=300} parameter significantly reduced 
+this issue compared to earlier experiments.
+
+\textbf{2) Semantic errors} (approximately 2.8\% of queries) occur when the SQL is syntactically 
+valid but logically incorrect. The most common semantic error involves using incorrect 
+comparison operators in range queries, such as replacing \texttt{<=} with \texttt{=} in 
+expressions like \texttt{BETWEEN X AND Y}, which overly restricts results. Additionally, 
+the model occasionally selects semantically related but incorrect tables (e.g., 
+\texttt{ground\_service} instead of \texttt{flight}) or omits required output columns or 
+predicates.
+
+Despite these errors, the model achieves 70.90\% Record F1, indicating that most generated 
+queries are semantically correct. The relatively low SQL Exact Match (1.93\%) reflects 
+syntactic variations (e.g., different clause ordering, alias naming) rather than semantic 
+incorrectness, which is expected in text-to-SQL tasks where execution-based metrics are 
+more reliable indicators of model performance.
+
+\section*{Q7.}
+
+Model checkpoints used to generate the outputs submitted are provided in the following google drive url link: \url{https://drive.google.com/drive/folders/1rzNMRs3VCVTmLD2KYEgRGFgTZ1pAyE_z?usp=share_link}
+
+% \section*{Extra Credit: }
+
+% If you are doing extra credit assignment, please describe your system here, as well as provide a link to a google drive which contains a model checkpoint used to generate outputs you have submitted. 
+% \textcolor{gray}{Optional TODO}
+
+
+
+\section*{Usage of AI}
+
+\subsection*{Implementation and Debugging (Claude AI)}
+I used \textbf{Claude AI} to assist with implementing the T5 text-to-SQL model, debugging training issues, and understanding best practices for sequence-to-sequence models.
+
+My main goals were to:
+\begin{itemize}
+    \item Understand T5 architecture and proper training procedures for text-to-SQL tasks
+    \item Debug technical issues including tokenization, truncation, and gradient flow
+    \item Optimize hyperparameters for both fine-tuning and training from scratch
+    \item Conduct systematic error analysis on model predictions
+\end{itemize}
+
+Claude helped me iterate through different model configurations, identify bugs in my implementation, and understand the trade-offs between different design choices.
+
+\subsection*{Sample Prompt}
+
+\begin{quote}
+\texttt{
+"My T5 model is generating SQL queries that are being truncated mid-sentence, with 90\% error rate. The queries look correct but cut off before closing parentheses. How can I fix this?"
+}
+\end{quote}
+
+However, all \textbf{final implementation decisions, experimental design, and analysis} were based on my own work:
+
+\begin{itemize}
+    \item \textbf{Hyperparameter optimization:} Selected learning rate $3 \times 10^{-4}$, batch size 16, max length 300, and 4 beams through systematic experimentation and validation on the development set
+    
+    \item \textbf{Training pipeline:} Implemented the complete end-to-end system including data loading, tokenization, model training loops, and evaluation metrics
+    
+    \item \textbf{Error analysis:} Designed and executed comprehensive qualitative analysis, identifying and categorizing 6 distinct error types with concrete examples and statistics
+    
+    \item \textbf{Model comparison:} Analyzed and interpreted training dynamics, convergence patterns, and performance differences between fine-tuning and training from scratch approaches
+    
+    \item \textbf{Results and conclusions:} All experimental results, quantitative tables, and analytical conclusions presented in this report are derived from my own testing and interpretation
+\end{itemize}
+
+\subsection*{Write-up Formatting (ChatGPT)}
+I used \textbf{ChatGPT} to help format my technical write-up in \LaTeX/Overleaf, structure tables, and ensure proper notation for model configurations and results.
+
+\subsection*{Sample Prompt}
+
+\begin{quote}
+\texttt{
+"Help me create a LaTeX table for my error analysis with columns for Error Type, Example, Description, and Statistics. Please use booktabs formatting for the table.
+}
+\end{quote}
+
+\end{document}

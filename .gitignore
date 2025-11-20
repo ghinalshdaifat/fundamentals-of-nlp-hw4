@@ -1,0 +1,33 @@
+# Checkpoints (too large)
+checkpoints/
+*.pt
+*.pth
+
+# Logs
+logs/
+*.out
+*.err
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment
+hw4-part-2-nlp/
+venv/
+env/
+
+# Mac
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Part 1 outputs (submitted on Gradescope)
+hw4-code/part-1-code/out/
+hw4-code/part-1-code/out_augmented/
